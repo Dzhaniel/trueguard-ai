@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TrueGuard AI — Тексеру</title>
+  <link rel="stylesheet" href="/static/styles.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Noto+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+</head>
+<body class="app-body">
+
+  <!-- Floating blobs background -->
+  <div class="blob-bg">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+
+  <!-- App nav -->
+  <nav class="home-nav">
+    <a href="/" class="nav-logo" style="text-decoration:none;">
+      <span class="logo-shield">🛡</span>
+      <span class="logo-text">TrueGuard<span class="logo-ai"> AI</span></span>
+    </a>
+    <span class="nav-status" id="statusPill">● Дайын</span>
+  </nav>
+
+  <!-- Main app layout -->
+  <main class="app-main">
+
+    <!-- LEFT: Input panel -->
+    <div class="input-panel">
+      <div class="panel-header">
+        <h2 class="panel-title">Хабарламаны тексеру</h2>
+        <p class="panel-sub">Хат мәтінін қойыңыз немесе скриншот жүктеңіз</p>
+      </div>
+
+      <!-- Steps indicator -->
+      <div class="steps-row">
+        <div class="step active" id="step1"><span class="step-num">1</span><span class="step-label">Мәтін</span></div>
+        <div class="step-line"></div>
+        <div class="step" id="step2"><span class="step-num">2</span><span class="step-label">Фото</span></div>
+        <div class="step-line"></div>
+        <div class="step" id="step3"><span class="step-num">3</span><span class="step-label">Тексеру</span></div>
+      </div>
+
+      <!-- Text input with live highlight overlay -->
+      <div class="textarea-wrap">
+        <div class="textarea-label">Хабарлама мәтіні</div>
+        <div class="textarea-container">
+          <div class="highlight-layer" id="highlightLayer" aria-hidden="true"></div>
+          <textarea
+            id="chatText"
+            class="chat-textarea"
+            placeholder="Хатты осюға жазыңыз немесе қойыңыз...&#10;Мысалы: «Сіздің картаңыз бұғатталды. Тез кодты жіберіңіз.»"
+            rows="7"
+            spellcheck="false"
+          ></textarea>
+        </div>
+
+        <!-- Live signal chips -->
+        <div class="signals-row" id="signalsRow">
+          <span class="signals-label">🔍 Анықталды:</span>
+          <div class="chips-container" id="chipsContainer">
+            <span class="chip-empty">Сигнал жоқ</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Photo upload -->
+      <div class="photo-section">
+        <div class="photo-label">Скриншот (міндетті емес)</div>
+        <div class="drop-zone" id="dropZone">
+          <input type="file" id="photoInput" accept="image/*" style="display:none"/>
+          <div class="drop-content" id="dropContent">
+            <div class="drop-icon">📷</div>
+            <div class="drop-text">Суретті осюға тастаңыз немесе <span class="drop-link" onclick="document.getElementById('photoInput').click()">таңдаңыз</span></div>
+            <div class="drop-privacy">🔒 Фото сақталмайды (тек саусақ ізі)</div>
+          </div>
+          <div class="drop-preview" id="dropPreview" style="display:none">
+            <img id="previewImg" alt="Жүктелген фото"/>
+            <button class="remove-photo-btn" id="removePhotoBtn">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Submit button -->
+      <button class="analyze-btn" id="analyzeBtn">
+        <span class="btn-icon">🔍</span>
+        <span class="btn-text">Тексеру</span>
+        <span class="btn-loader" id="btnLoader" style="display:none"></span>
+      </button>
+    </div>
+
+    <!-- RIGHT: Result panel -->
+    <div class="result-panel" id="resultPanel">
+
+      <!-- Empty state -->
+      <div class="result-empty" id="resultEmpty">
+        <div class="empty-icon">🛡️</div>
+        <div class="empty-title">Нәтиже осюда пайда болады</div>
+        <div class="empty-sub">Хабарлама жазып, «Тексеру» батырмасын басыңыз</div>
+      </div>
+
+      <!-- Loading state -->
+      <div class="result-loading" id="resultLoading" style="display:none">
+        <div class="loading-ring">
+          <svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="32" fill="none" stroke-width="6"/></svg>
+        </div>
+        <div class="loading-text">Анализдеу...</div>
+      </div>
+
+      <!-- Error state -->
+      <div class="result-error" id="resultError" style="display:none">
+        <div class="error-icon">⚠️</div>
+        <div class="error-title">Қате орын алды</div>
+        <div class="error-msg" id="errorMsg"></div>
+        <button class="retry-btn" onclick="document.getElementById('analyzeBtn').click()">Қайта көру</button>
+      </div>
+
+      <!-- STOP overlay for HIGH risk -->
+      <div class="stop-overlay" id="stopOverlay" style="display:none">
+        <div class="stop-card">
+          <div class="stop-icon">🛑</div>
+          <h2 class="stop-title">ТОҚТАҢЫЗ!</h2>
+          <p class="stop-msg">Бұл хабарлама — <strong>өте қауіпті алаяқтық</strong>.</p>
+          <ul class="stop-rules">
+            <li>💳 Ешқандай ақша аудармаңыз</li>
+            <li>🔐 Код, IBAN, пароль бермеңіз</li>
+            <li>📞 Адамды басқа нөмірден қоңырау шалып тексеріңіз</li>
+          </ul>
+          <label class="stop-checkbox">
+            <input type="checkbox" id="stopConfirm"/>
+            <span>Мен түсіндім және жалғастыру қаламын</span>
+          </label>
+          <button class="stop-proceed-btn" id="stopProceedBtn" disabled>Нәтижені көру →</button>
+        </div>
+      </div>
+
+      <!-- Main result -->
+      <div class="result-main" id="resultMain" style="display:none">
+
+        <!-- Risk badge + score ring -->
+        <div class="risk-header">
+          <div class="risk-ring-wrap">
+            <svg class="risk-ring" viewBox="0 0 120 120" id="riskRingSvg">
+              <circle class="ring-track" cx="60" cy="60" r="50" fill="none" stroke-width="10"/>
+              <circle class="ring-fill" cx="60" cy="60" r="50" fill="none" stroke-width="10"
+                stroke-dasharray="314" stroke-dashoffset="314" id="ringFill"/>
+            </svg>
+            <div class="ring-score" id="ringScore">0</div>
+          </div>
+          <div class="risk-info">
+            <div class="risk-badge" id="riskBadge">—</div>
+            <div class="risk-type" id="riskType"></div>
+            <div class="mini-meters">
+              <div class="mini-meter">
+                <span>Манипуляция</span>
+                <div class="meter-bar"><div class="meter-fill meter-manip" id="manipFill"></div></div>
+                <span class="meter-val" id="manipVal">0</span>
+              </div>
+              <div class="mini-meter">
+                <span>Осалдық</span>
+                <div class="meter-bar"><div class="meter-fill meter-vuln" id="vulnFill"></div></div>
+                <span class="meter-val" id="vulnVal">0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Evidence reasons -->
+        <div class="evidence-section">
+          <div class="section-label">📋 Дәлелдер</div>
+          <ul class="evidence-list" id="evidenceList"></ul>
+        </div>
+
+        <!-- Safety Coach bubble -->
+        <div class="coach-section">
+          <div class="coach-bubble">
+            <div class="coach-avatar">🤖</div>
+            <div class="coach-content">
+              <div class="coach-label">AI Кеңесші</div>
+              <div class="coach-text" id="coachText"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Safe reply tabs -->
+        <div class="reply-section">
+          <div class="section-label">💬 Қауіпсіз жауап</div>
+          <div class="reply-tabs">
+            <button class="tab-btn active" data-tab="polite">Сыпайы</button>
+            <button class="tab-btn" data-tab="short">Қысқа</button>
+            <button class="tab-btn" data-tab="strict">Қатаң</button>
+          </div>
+          <div class="reply-box" id="replyBox"></div>
+          <button class="copy-btn" id="copyBtn" disabled>
+            <span id="copyBtnText">📋 Көшіру</span>
+          </button>
+          <div class="reply-locked" id="replyLocked" style="display:none">
+            🔒 Жалғастыру үшін жоғарыдағы «Мен түсіндім» жолақты белгілеңіз
+          </div>
+        </div>
+
+        <!-- Cache notice -->
+        <div class="cache-notice" id="cacheNotice" style="display:none">
+          ⚡ Нәтиже кэштен алынды
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
